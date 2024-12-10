@@ -1,6 +1,8 @@
 Title: Bulk Tweet Deletion Script
 
 Description:
+
+See Original script for Tutorial
 This script automates the process of bulk deleting tweets, retweets, and replies on X (formerly Twitter). It leverages the platform’s internal APIs to fetch timelines, filter tweets based on customizable criteria, and delete them at scale. Ideal for users who want to clean up their timeline, remove old or sensitive content, or maintain a curated presence without manually deleting each tweet.
 
 Key Features:
