@@ -31,5 +31,12 @@ Usage Overview:
 	4.	Monitoring & Logs:
 	•	The script logs progress, showing which tweets it’s deleting, and any errors or retries it encounters.
 
+Quick Start (Browser Console):
+	1.	Open https://x.com and log in.
+	2.	Open your browser dev tools → Console tab.
+	3.	Paste the contents of `main.js` into the console.
+	4.	Fill in the placeholders for `authorization`, `client_tid`, `client_uuid`, and `username`.
+	5.	Adjust the `delete_options` filters, then run the script.
+
 Note:
 Use responsibly. Deletions are permanent. Ensure you understand and trust the filters you’ve set before running the script. Make a backup of your tweets or test with a small sample before performing large-scale deletions.

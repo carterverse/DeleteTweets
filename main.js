@@ -1,13 +1,13 @@
 var authorization = "Bearer ***"; // replace by authorization value
-var ua = navigator.userAgentData.brands.map(brand => `"${brand.brand}";v="${brand.version}"`).join(', ');
+var ua = buildUserAgentString();
 var client_tid = "***"; // replace by X-Client-Transaction-Id value
 var client_uuid = "***"; // replace by X-Client-Uuid value
 var csrf_token = getCookie("ct0");
 var random_resource = "uYU5M2i12UhDvDTzN6hZPg";
 var random_resource_old_tweets = "H8OOoI-5ZE4NxgRr8lfyWg"
-var language_code = navigator.language.split("-")[0]
+var language_code = (navigator.language || "en-US").split("-")[0]
 var tweets_to_delete = []
-var user_id = getCookie("twid").substring(4);
+var user_id = getCookie("twid") ? getCookie("twid").substring(4) : undefined;
 var username = "YourUsernameHere" // replace with your username
 var stop_signal = undefined
 var twitter_archive_content = undefined
@@ -86,14 +86,36 @@ function buildAcceptLanguageString() {
 	}).join(',');
 }
 
+function buildUserAgentString() {
+	if (navigator.userAgentData && Array.isArray(navigator.userAgentData.brands)) {
+		return navigator.userAgentData.brands.map(brand => `"${brand.brand}";v="${brand.version}"`).join(', ');
+	}
+	return navigator.userAgent || "Mozilla/5.0";
+}
+
 function getCookie(name) {
 	const value = `; ${document.cookie}`;
 	const parts = value.split(`; ${name}=`);
 	if (parts.length === 2) return parts.pop().split(';').shift();
+	return undefined;
 }
 
 async function sleep(ms) {
 	return new Promise(resolve => setTimeout(resolve, ms));
+}
+
+function ensureRequiredConfig() {
+	const missing = [];
+	if (!authorization || authorization.includes("***")) missing.push("authorization");
+	if (!client_tid || client_tid === "***") missing.push("client_tid");
+	if (!client_uuid || client_uuid === "***") missing.push("client_uuid");
+	if (!username || username === "YourUsernameHere") missing.push("username");
+	if (!csrf_token) missing.push("csrf_token (ct0 cookie)");
+	if (!user_id) missing.push("user_id (twid cookie)");
+
+	if (missing.length > 0) {
+		throw new Error(`Missing configuration: ${missing.join(", ")}. Update the placeholders before running.`);
+	}
 }
 
 async function fetch_tweets(cursor, retry = 0) {
@@ -101,10 +123,10 @@ async function fetch_tweets(cursor, retry = 0) {
 	let final_cursor = cursor ? `%22cursor%22%3A%22${cursor}%22%2C` : "";
 	let resource = delete_options["old_tweets"] ? random_resource_old_tweets : random_resource
 	let endpoint =  delete_options["old_tweets"] ? "UserTweets" : "UserTweetsAndReplies"
-	var base_url = `https://x.com/i/api/graphql/${resource}/${endpoint}`;
+	const base_url = `https://x.com/i/api/graphql/${resource}/${endpoint}`;
 
-	var variable = ""
-	var feature = ""
+	let variable = ""
+	let feature = ""
 	if (delete_options["old_tweets"] == false) {
 		variable = `?variables=%7B%22userId%22%3A%22${user_id}%22%2C%22count%22%3A${count}%2C${final_cursor}%22includePromotedContent%22%3Atrue%2C%22withCommunity%22%3Atrue%2C%22withVoice%22%3Atrue%2C%22withV2Timeline%22%3Atrue%7D`;
 		feature = `&features=%7B%22rweb_lists_timeline_redesign_enabled%22%3Atrue%2C%22responsive_web_graphql_exclude_directive_enabled%22%3Atrue%2C%22verified_phone_label_enabled%22%3Afalse%2C%22creator_subscriptions_tweet_preview_api_enabled%22%3Atrue%2C%22responsive_web_graphql_timeline_navigation_enabled%22%3Atrue%2C%22responsive_web_graphql_skip_user_profile_image_extensions_enabled%22%3Afalse%2C%22tweetypie_unmention_optimization_enabled%22%3Atrue%2C%22responsive_web_edit_tweet_api_enabled%22%3Atrue%2C%22graphql_is_translatable_rweb_tweet_is_translatable_enabled%22%3Atrue%2C%22view_counts_everywhere_api_enabled%22%3Atrue%2C%22longform_notetweets_consumption_enabled%22%3Atrue%2C%22responsive_web_twitter_article_tweet_consumption_enabled%22%3Afalse%2C%22tweet_awards_web_tipping_enabled%22%3Afalse%2C%22freedom_of_speech_not_reach_fetch_enabled%22%3Atrue%2C%22standardized_nudges_misinfo%22%3Atrue%2C%22tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled%22%3Atrue%2C%22longform_notetweets_rich_text_read_enabled%22%3Atrue%2C%22longform_notetweets_inline_media_enabled%22%3Atrue%2C%22responsive_web_media_download_video_enabled%22%3Afalse%2C%22responsive_web_enhance_cards_enabled%22%3Afalse%7D`;
@@ -114,7 +136,7 @@ async function fetch_tweets(cursor, retry = 0) {
 		feature = `&features=%7B%22responsive_web_graphql_exclude_directive_enabled%22%3Atrue%2C%22verified_phone_label_enabled%22%3Afalse%2C%22creator_subscriptions_tweet_preview_api_enabled%22%3Atrue%2C%22responsive_web_graphql_timeline_navigation_enabled%22%3Atrue%2C%22responsive_web_graphql_skip_user_profile_image_extensions_enabled%22%3Afalse%2C%22tweetypie_unmention_optimization_enabled%22%3Atrue%2C%22responsive_web_edit_tweet_api_enabled%22%3Atrue%2C%22graphql_is_translatable_rweb_tweet_is_translatable_enabled%22%3Atrue%2C%22view_counts_everywhere_api_enabled%22%3Atrue%2C%22longform_notetweets_consumption_enabled%22%3Atrue%2C%22responsive_web_twitter_article_tweet_consumption_enabled%22%3Afalse%2C%22tweet_awards_web_tipping_enabled%22%3Afalse%2C%22freedom_of_speech_not_reach_fetch_enabled%22%3Atrue%2C%22standardized_nudges_misinfo%22%3Atrue%2C%22tweet_with_visibility_results_prefer_gql_limited_actions_policy_enabled%22%3Atrue%2C%22longform_notetweets_rich_text_read_enabled%22%3Atrue%2C%22longform_notetweets_inline_media_enabled%22%3Atrue%2C%22responsive_web_media_download_video_enabled%22%3Afalse%2C%22responsive_web_enhance_cards_enabled%22%3Afalse%7D`
 	}
 
-	var final_url = `${base_url}${variable}${feature}`;
+	const final_url = `${base_url}${variable}${feature}`;
 
 	const response = await fetch(final_url, {
 		"headers": {
@@ -153,13 +175,13 @@ async function fetch_tweets(cursor, retry = 0) {
 			throw new Error("Max retries reached")
 		}
 		console.log(`(fetch_tweets) Network response was not ok, retrying in ${10 * (1 + retry)} seconds`);
-		console.log(response.text())
+		console.log(await response.text())
 		await sleep(10000 * (1 + retry));
 		return fetch_tweets(cursor, retry + 1)
 	}
 	const data = await response.json();
 	var entries = data["data"]["user"]["result"]["timeline_v2"]["timeline"]["instructions"]
-	for (item of entries) {
+	for (const item of entries) {
 		if (item["type"] == "TimelineAddEntries") {
 			entries = item["entries"]
 		}
@@ -186,8 +208,8 @@ function check_keywords(text) {
 	if (delete_options["match_any_keywords"].length == 0) {
 		return true
 	}
-	for (let word of delete_options["match_any_keywords"]) {
-		if (text.includes(word))
+	for (const word of delete_options["match_any_keywords"]) {
+		if (word && text.includes(word))
 			return true
 	}
 	return false
@@ -195,7 +217,7 @@ function check_keywords(text) {
 
 function check_date(tweet) {
 	if (tweet['legacy'].hasOwnProperty('created_at')) {
-		tweet_date = new Date(tweet['legacy']["created_at"])
+		let tweet_date = new Date(tweet['legacy']["created_at"])
 		tweet_date.setHours(0, 0, 0, 0);
 		if (tweet_date > delete_options["after_date"] && tweet_date < delete_options["before_date"]) {
 			return true
@@ -209,7 +231,7 @@ function check_date(tweet) {
 }
 
 function check_date_archive(created_at) {
-	tweet_date = new Date(created_at)
+	let tweet_date = new Date(created_at)
 	tweet_date.setHours(0, 0, 0, 0);
 	if (tweet_date > delete_options["after_date"] && tweet_date < delete_options["before_date"]) {
 		return true
@@ -239,9 +261,9 @@ function check_filter(tweet) {
 }
 
 function check_filter_archive(tweet_obj) {
-	let tweet_id = tweet_obj["id"]
-	let tweet_str = tweet_obj["text"]
-	let tweet_date = tweet_obj["date"]
+	const tweet_id = tweet_obj["id"]
+	const tweet_str = tweet_obj["text"]
+	const tweet_date = tweet_obj["date"]
 	if ((delete_options["tweets_to_ignore"].includes(tweet_id) || delete_options["tweets_to_ignore"].includes( parseInt(tweet_id) ) )) {
 		return false
 	}
@@ -273,7 +295,7 @@ function parseTweetsFromArchive(data) {
                 const isInReplyToExcludedUser = item.tweet.in_reply_to_user_id_str === user_id;
                 const startsWithRT = item.tweet.full_text.startsWith('RT ');
 				
-				let tweet_obj = {}
+				const tweet_obj = {}
 				tweet_obj["id"] = item.tweet.id_str
 				tweet_obj["text"] = item.tweet.full_text
 				tweet_obj["date"] = item.tweet.created_at
@@ -327,9 +349,9 @@ function findTweetIds(obj) {
 }
 
 async function delete_tweets(id_list) {
-	var delete_tid = "LuSa1GYxAMxWEugf+FtQ/wjCAUkipMAU3jpjkil3ujj7oq6munDCtNaMaFmZ8bcm7CaNvi4GIXj32jp7q32nZU8zc5CyLw"
-	var id_list_size = id_list.length
-	var retry = 0
+	const delete_tid = "LuSa1GYxAMxWEugf+FtQ/wjCAUkipMAU3jpjkil3ujj7oq6munDCtNaMaFmZ8bcm7CaNvi4GIXj32jp7q32nZU8zc5CyLw"
+	const id_list_size = id_list.length
+	let retry = 0
 
 	for (let i = 0; i < id_list_size; ++i) {
 		const response = await fetch("https://x.com/i/api/graphql/VaenaVgh5q5ih7kvyVjgtg/DeleteTweet", {
@@ -368,10 +390,11 @@ async function delete_tweets(id_list) {
 			if (retry == 8) {
 				throw new Error("Max retries reached")
 			}
-			console.log(response.text())
+			console.log(await response.text())
 			console.log(`(delete_tweets) Network response was not ok, retrying in ${10 * (1 + retry)} seconds`);
 			i -= 1;
 			await sleep(10000 * (1 + retry));
+			retry += 1;
 			continue
 		}
 		retry = 0
@@ -382,6 +405,8 @@ async function delete_tweets(id_list) {
 
 var next = null
 var entries = undefined
+
+ensureRequiredConfig();
 
 if (delete_options["from_archive"] == true) {
 	console.log("Waiting for user to load his Twitter archive")
@@ -480,7 +505,7 @@ if (delete_options["from_archive"] == true) {
             margin: 0;
             color: #666;
         }
-		confirm-button {
+		.confirm-button {
 			margin-top: 30px;
 			background-color: rgb(0, 116, 212);
 			border: 2px solid rgb(0, 116, 212);
